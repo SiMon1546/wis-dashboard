@@ -13,6 +13,7 @@
   <main class="wrap">
     <section class="summary" aria-label="สถานะระบบ"><div><span class="label">WIS risk ภาพรวม</span><h2 id="overall">กำลังโหลด…</h2><p>การตีความของ WIS ไม่ใช่ประกาศเตือนภัยของหน่วยงานรัฐ</p></div><div class="sync"><button id="refresh" type="button">รีเฟรชข้อมูล</button><p id="last-fetch">ยังไม่ได้รับข้อมูล</p><p id="countdown">อัปเดตทุก 60 วินาทีเมื่อเปิดหน้านี้</p></div></section>
     <p id="status" role="status" aria-live="polite">กำลังเชื่อมต่อ WIS…</p>
+    <nav class="river-order" aria-label="ลำดับสถานีจากเหนือไปใต้"><h2>3 จุดตามแนวเจ้าพระยา · เหนือ → ใต้</h2><ol><li><strong>1 · นครสวรรค์</strong><span>C2 · ค่ายจิรประวัติ</span></li><li><strong>2 · ชัยนาท</strong><span>C13 · ท้ายเขื่อนเจ้าพระยา</span></li><li><strong>3 · กรุงเทพฯ</strong><span>C12 · สามเสน</span></li></ol><p>ลำดับตำแหน่งตามแม่น้ำ ไม่ใช่เวลาคาดการณ์ที่น้ำจะเดินทางถึง</p></nav>
     <section id="stations" class="stations" aria-label="สถานี C2 C13 C12"></section>
     <section class="notes"><h2>อ่านข้อมูลอย่างไร</h2><p>ระดับน้ำใช้หน่วยและฐานอ้างอิงจากแหล่งข้อมูลแต่ละสถานี ไม่ควรเปรียบเทียบตัวเลขระดับน้ำข้ามสถานีโดยตรง ระยะถึงตลิ่งเป็นค่าบวกเมื่อน้ำอยู่ต่ำกว่าตลิ่ง</p><p>“ไม่มีข้อมูล” หมายถึง API ส่งค่า NULL ไม่ใช่ศูนย์ การรีเฟรชหน้าไม่ได้ทำให้เวลาเก็บข้อมูลของสถานีใหม่ขึ้น ความเชื่อมั่นเป็นค่าจาก WIS ไม่ใช่ความน่าจะเป็นของน้ำท่วม</p><p id="ingestion">การนำเข้าล่าสุด: —</p></section>
   </main><footer class="wrap">WIS 06A Minimum Dashboard · API แบบอ่านอย่างเดียว · เวลาแสดงเป็นประเทศไทย</footer>

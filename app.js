@@ -2,6 +2,7 @@
 const API_URL = 'https://pexkpkdhiktvenvbowvb.supabase.co/functions/v1/wis-dashboard';
 const REFRESH_MS = 60000;
 const ORDER = ['C2', 'C13', 'C12'];
+const locations = {C2:'เจ้าพระยาตอนบน · นครสวรรค์', C13:'ด้านท้ายเขื่อนเจ้าพระยา · ชัยนาท', C12:'เจ้าพระยาช่วงกรุงเทพฯ · สามเสน'};
 const el = id => document.getElementById(id);
 const number = (v, digits = 2) => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'ไม่มีข้อมูล' : Number(v).toLocaleString('th-TH', {maximumFractionDigits: digits, minimumFractionDigits: digits});
 const time = v => { const d = new Date(v); return v && Number.isFinite(d.getTime()) ? d.toLocaleString('th-TH', {timeZone: 'Asia/Bangkok', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'}) : 'ไม่มีข้อมูล'; };
@@ -15,7 +16,13 @@ function age(s) { const d = Date.parse(s.observed_at); return Number.isFinite(d)
 function card(s) {
   const article = node('article', undefined, 'station'); article.dataset.station = s.station_code;
   const top = node('div', undefined, 'card-top'), name = node('div');
-  name.append(node('div', s.station_code, 'code'),node('h2', s.name_th || s.name_en || s.site_code, 'site-name'),node('div', s.province || 'ไม่มีข้อมูลจังหวัด', 'province')); top.append(name,riskBadge(s.risk_level));
+  name.append(node('div', `จุด ${ORDER.indexOf(s.station_code)+1} · ${s.station_code}`, 'code'),node('div', s.province || 'ไม่มีข้อมูลจังหวัด', 'province'),node('h2', s.name_th || s.name_en || s.site_code, 'site-name'),node('p', locations[s.station_code] || s.river_name || '', 'location-context'));
+  if(s.lat != null && s.lon != null && Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lon)) && Math.abs(Number(s.lat))<=90 && Math.abs(Number(s.lon))<=180) {
+    const map = node('a','ดูตำแหน่งบนแผนที่ ↗','map-link');
+    map.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.lat+','+s.lon)}`;
+    map.target = '_blank'; map.rel = 'noopener noreferrer'; map.setAttribute('aria-label', `ดูตำแหน่ง ${s.station_code} ${s.name_th || ''} บนแผนที่`); name.append(map);
+  }
+  top.append(name,riskBadge(s.risk_level));
   const metrics = node('div', undefined, 'metrics'); metrics.append(node('div', 'ระดับน้ำ', 'label'));
   const level = node('div', number(s.water_level_m), 'level'); level.append(node('span', ' ม.', 'unit')); metrics.append(level);
   row(metrics,'อัตราการไหล / ระบาย',s.discharge_m3s == null ? 'ไม่มีข้อมูล' : `${number(s.discharge_m3s,0)} ม³/วินาที`);
