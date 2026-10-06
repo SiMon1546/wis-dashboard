@@ -8,11 +8,42 @@ const number = (v, digits = 2) => v === null || v === undefined || !Number.isFin
 const time = v => { const d = new Date(v); return v && Number.isFinite(d.getTime()) ? d.toLocaleString('th-TH', {timeZone: 'Asia/Bangkok', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'}) : 'ไม่มีข้อมูล'; };
 const riskNames = {NORMAL:'ปกติ', WATCH:'เฝ้าระวัง', WARNING:'เตือน', CRITICAL:'วิกฤต', DANGER:'อันตราย', EMERGENCY:'ฉุกเฉิน'};
 const trendNames = {RISING:'↑ เพิ่มขึ้น', FALLING:'↓ ลดลง', STEADY:'→ ทรงตัว', UNKNOWN:'ยังประเมินไม่ได้'};
+let apiClockOffset = 0;
 let busy = false, nextRefresh = 0, lastData = null, lastSuccess = null, failure = false;
 function node(tag, text, cls) { const n = document.createElement(tag); if(text !== undefined) n.textContent = text; if(cls) n.className = cls; return n; }
 function riskBadge(value) { const risk = Object.hasOwn(riskNames, value) ? value : 'UNKNOWN'; return node('span', `${riskNames[risk] || 'ยังประเมินไม่ได้'} · ${value || 'UNKNOWN'}`, `badge risk-${risk}`); }
 function row(parent, label, value) { const r = node('div', undefined, 'metric-row'); r.append(node('span', label), node('strong', value)); parent.append(r); }
-function age(s) { const d = Date.parse(s.observed_at); return Number.isFinite(d) ? Math.max(0,(Date.now()-d)/60000) : s.age_minutes; }
+function age(s) {
+  const d = Date.parse(s.observed_at);
+  if(!Number.isFinite(d)) return null;
+  const minutes = (Date.now()+apiClockOffset-d)/60000;
+  return minutes >= 0 ? minutes : null;
+}
+function freshnessState(minutes) {
+  if(minutes == null || !Number.isFinite(minutes) || minutes < 0) return ['UNKNOWN','ยังประเมินความสดไม่ได้'];
+  if(minutes <= 75) return ['LIVE','ข้อมูลล่าสุด'];
+  if(minutes <= 120) return ['DELAYED','ข้อมูลล่าช้า'];
+  return ['STALE','ข้อมูลเก่า'];
+}
+function freshness(s) {
+  const minutes = age(s), [status,label] = freshnessState(minutes);
+  const box = node('div', undefined, `freshness fresh-${status}`);
+  box.append(node('strong', `${label} · ${status}`));
+  box.append(node('p', minutes == null ? 'ไม่มีเวลาตรวจวัดที่ใช้ประเมินได้' : `ตรวจวัดมาแล้ว ${Math.floor(minutes).toLocaleString('th-TH')} นาที`));
+  box.append(node('p', `เวลาตรวจวัด: ${time(s.observed_at)}`));
+  if(status === 'DELAYED') box.append(node('p','เกิน 75 นาที · ยังไม่มีข้อมูลตรวจวัดใหม่กว่านี้ในชุดที่เว็บได้รับ'));
+  if(status === 'STALE') box.append(node('p','เกิน 120 นาที · ค่าและ WIS risk ที่แสดงอ้างอิงข้อมูลเก่า'));
+  box.append(node('small','ความสดคำนวณจากอายุข้อมูล: ≤ 75 นาที LIVE · > 75–120 นาที DELAYED · > 120 นาที STALE; แยกจาก QC ของ Backend'));
+  return box;
+}
+function updateFreshness() {
+  if(!lastData) return;
+  for(const s of lastData.stations) {
+    const article = document.querySelector(`[data-station="${ORDER.includes(s.station_code) ? s.station_code : ''}"]`);
+    const old = article?.querySelector('.freshness');
+    if(old) old.replaceWith(freshness(s));
+  }
+}
 function riskReason(s) {
   const box = node('div', undefined, 'risk-reason');
   box.append(node('strong', 'เหตุผลของ WIS risk'));
@@ -61,8 +92,8 @@ function card(s) {
   row(metrics,'แนวโน้ม',trendNames[s.trend] || s.trend || 'ยังประเมินไม่ได้');
   row(metrics,'อัตราเปลี่ยนระดับ',s.water_rate_m_per_hr == null ? 'ไม่มีข้อมูล' : `${number(s.water_rate_m_per_hr,3)} ม./ชม.`);
   const quality = node('div', undefined, 'quality');
-  for(const text of [`QC: ${s.qc_status || 'UNKNOWN'} · อายุข้อมูล ${number(age(s),0)} นาที`, `ความเชื่อมั่น: ${s.confidence == null ? 'ไม่มีข้อมูล' : number(s.confidence*100,0)+'%'}`, `เวลาตรวจวัด: ${time(s.observed_at)}`, `สถานะน้ำ: ${s.water_state || 'UNKNOWN'}`, `หลักฐานน้ำล้น: ${s.flood_state || 'UNKNOWN'}`, `Trend method: ${s.trend_method || 'UNKNOWN'}`]) quality.append(node('p',text));
-  article.append(top,metrics,riskReason(s),quality); return article;
+  for(const text of [`QC จาก Backend: ${{LIVE:'ผ่านเกณฑ์และทันเวลา',DELAYED:'ข้อมูลล่าช้า',STALE:'ข้อมูลเก่า',SUSPECT:'ข้อมูลผิดปกติ',MISSING:'ไม่มีข้อมูล'}[s.qc_status] || 'ยังประเมินไม่ได้'} · ${s.qc_status || 'UNKNOWN'}`, `ความเชื่อมั่น: ${s.confidence == null ? 'ไม่มีข้อมูล' : number(s.confidence*100,0)+'%'}`, `เวลาตรวจวัด: ${time(s.observed_at)}`, `สถานะน้ำ: ${s.water_state || 'UNKNOWN'}`, `หลักฐานน้ำล้น: ${s.flood_state || 'UNKNOWN'}`, `Trend method: ${s.trend_method || 'UNKNOWN'}`]) quality.append(node('p',text));
+  article.append(top,freshness(s),metrics,riskReason(s),quality); return article;
 }
 function render(data) {
   el('overall').replaceChildren(riskBadge(data.overall_risk));
@@ -79,8 +110,9 @@ async function refresh() {
     if(!response.ok) throw new Error(`API HTTP ${response.status}`);
     const data = await response.json();
     if(!Array.isArray(data.stations) || !data.stations.length) throw new Error('API ไม่ส่งข้อมูลสถานี');
+    apiClockOffset = Number.isFinite(Date.parse(data.generated_at)) ? Date.parse(data.generated_at)-Date.now() : 0;
     lastData = data; lastSuccess = new Date(); failure = false; render(data);
-    el('last-fetch').textContent = `รับข้อมูลล่าสุด: ${time(lastSuccess)}`;
+    el('last-fetch').textContent = `เว็บรับข้อมูลเมื่อ: ${time(lastSuccess)} · ไม่ใช่เวลาตรวจวัด`;
     el('status').textContent = `เชื่อมต่อสำเร็จ · ${data.source || 'WIS'} · ${data.station_count ?? data.stations.length} สถานี · เวลา API: ${time(data.generated_at)}`;
     el('status').className = '';
   } catch(error) {
@@ -89,6 +121,7 @@ async function refresh() {
     el('status').className = 'error';
   } finally { clearTimeout(timeout); busy = false; el('refresh').disabled = false; nextRefresh = Date.now()+REFRESH_MS; }
 }
+setInterval(()=>{if(!document.hidden) updateFreshness();},15000);
 el('refresh').addEventListener('click',refresh);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh();});
 setInterval(()=>{
