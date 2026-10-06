@@ -5,3 +5,5 @@
 .risk-reason{margin:16px 0;padding:14px;border:1px solid #d8e3ed;border-radius:12px;background:#f5f8fc;font-size:.9rem;line-height:1.6}.risk-reason p{margin:8px 0;overflow-wrap:anywhere}.risk-reason summary{cursor:pointer;font-weight:600;color:#245278}.risk-reason details{margin-top:10px}.risk-reason details p{font-size:.85rem}
 
 .freshness{margin:0 20px 16px;padding:12px;border-radius:10px;border-left:4px solid #607387;background:#edf2f7;font-size:.86rem;line-height:1.6;overflow-wrap:anywhere}.freshness p{margin:4px 0}.freshness small{display:block;margin-top:8px;font-size:.75rem}.fresh-LIVE{border-color:#168164;background:#edf9f2}.fresh-DELAYED{border-color:#bd8700;background:#fff8df}.fresh-STALE{border-color:#c64e31;background:#fff0e9}
+
+@media(max-width:850px){.station{display:block}.card-top{border-right:0;border-bottom:1px solid var(--line)}}
