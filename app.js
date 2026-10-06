@@ -29,11 +29,13 @@ function freshness(s) {
   const minutes = age(s), [status,label] = freshnessState(minutes);
   const box = node('div', undefined, `freshness fresh-${status}`);
   box.append(node('strong', `${label} · ${status}`));
-  box.append(node('p', minutes == null ? 'ไม่มีเวลาตรวจวัดที่ใช้ประเมินได้' : `ตรวจวัดมาแล้ว ${Math.floor(minutes).toLocaleString('th-TH')} นาที`));
-  box.append(node('p', `เวลาตรวจวัด: ${time(s.observed_at)}`));
-  if(status === 'DELAYED') box.append(node('p','เกิน 75 นาที · ยังไม่มีข้อมูลตรวจวัดใหม่กว่านี้ในชุดที่เว็บได้รับ'));
-  if(status === 'STALE') box.append(node('p','เกิน 120 นาที · ค่าและ WIS risk ที่แสดงอ้างอิงข้อมูลเก่า'));
-  box.append(node('small','ความสดคำนวณจากอายุข้อมูล: ≤ 75 นาที LIVE · > 75–120 นาที DELAYED · > 120 นาที STALE; แยกจาก QC ของ Backend'));
+  box.append(node('p', minutes == null ? 'ไม่มีเวลาตรวจวัดที่ใช้ประเมินได้' : `${Math.floor(minutes).toLocaleString('th-TH')} นาที · ตรวจวัด ${time(s.observed_at).replace(/:\d{2}$/, '')}`));
+  const details = node('details'), summary = node('summary', 'เกณฑ์ความสดของข้อมูล');
+  details.append(summary);
+  if(status === 'DELAYED') details.append(node('p','เกิน 75 นาที · ยังไม่มีข้อมูลตรวจวัดใหม่กว่านี้ในชุดที่เว็บได้รับ'));
+  if(status === 'STALE') details.append(node('p','เกิน 120 นาที · ค่าและ WIS risk ที่แสดงอ้างอิงข้อมูลเก่า'));
+  details.append(node('small','ความสดคำนวณจากอายุข้อมูล: ≤ 75 นาที LIVE · > 75–120 นาที DELAYED · > 120 นาที STALE; แยกจาก QC ของ Backend'));
+  box.append(details);
   return box;
 }
 function updateFreshness() {
@@ -41,12 +43,16 @@ function updateFreshness() {
   for(const s of lastData.stations) {
     const article = document.querySelector(`[data-station="${ORDER.includes(s.station_code) ? s.station_code : ''}"]`);
     const old = article?.querySelector('.freshness');
-    if(old) old.replaceWith(freshness(s));
+    if(old) {
+      const updated = freshness(s);
+      updated.querySelector('details').open = old.querySelector('details')?.open || false;
+      old.replaceWith(updated);
+    }
   }
 }
 function riskReason(s) {
-  const box = node('div', undefined, 'risk-reason');
-  box.append(node('strong', 'เหตุผลของ WIS risk'));
+  const box = node('details', undefined, 'risk-reason');
+  box.append(node('summary', 'เหตุผลของ WIS risk'));
   if(s.engine_version !== '04A-basic-v0.1') {
     box.append(node('p', 'แสดงระดับจาก Backend · ยังไม่มีคำอธิบายเกณฑ์สำหรับ Engine รุ่นนี้'));
     return box;
@@ -67,7 +73,7 @@ function riskReason(s) {
     expected = 'NORMAL'; reason = `ระยะถึงตลิ่ง ${number(margin)} ม. มากกว่า 1.00 ม. จึงเป็น NORMAL`;
   }
   box.append(node('p', expected === s.risk_level ? reason : 'ระดับจาก Backend ไม่ตรงกับเกณฑ์ที่หน้าเว็บรู้จัก จึงยังยืนยันเหตุผลไม่ได้'));
-  const details = node('details'), summary = node('summary', 'เกณฑ์และความเชื่อมั่น'); details.append(summary);
+  const details = node('div');
   details.append(node('p', 'เกณฑ์ระยะถึงตลิ่ง: ≤ 0.50 ม. WARNING · > 0.50–1.00 ม. WATCH · > 1.00 ม. NORMAL; ข้อความล้นตลิ่งเป็น CRITICAL และ QC SUSPECT มีสิทธิ์ทับเป็น WATCH'));
   details.append(node('p', 'แนวโน้มแสดงประกอบเท่านั้น ยังไม่เพิ่มหรือลดระดับ risk ใน Engine รุ่นนี้'));
   details.append(node('p', 'ความเชื่อมั่นเป็นคะแนนตามกฎคุณภาพข้อมูล ไม่ใช่โอกาสทำนายถูก: LIVE 95%, DELAYED 80%, STALE 45%, อื่น ๆ 30%; ไม่มีระยะถึงตลิ่งหัก 15 จุด และ trend UNKNOWN หัก 5 จุด โดยมีขั้นต่ำ 20%'));

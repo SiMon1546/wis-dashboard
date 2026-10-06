@@ -9,3 +9,10 @@
 @media(max-width:850px){.station{display:block}.card-top{border-right:0;border-bottom:1px solid var(--line)}}
 
 .satellite-section{margin:20px 0;padding:22px;background:white;border:1px solid var(--line);border-radius:18px}.satellite-heading{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}.satellite-section .eyebrow{color:#406e91}.satellite-section h3{margin:12px 0 6px}.satellite-section p{font-size:14px;line-height:1.7}.satellite-date{background:#e8eff6;padding:12px;border-radius:10px}.satellite-section figure{margin:18px auto;max-width:780px}.satellite-section img{display:block;width:100%;height:auto;border-radius:12px}.satellite-section figcaption{font-size:12px;color:var(--muted);margin-top:8px}.satellite-note{padding:12px;background:#fff5d6;border-radius:10px}.satellite-links{display:flex;flex-wrap:wrap;gap:20px}@media(max-width:560px){.satellite-section{padding:16px}}
+
+/* 06B: compact disclosures; retain existing responsive cards and risk colours. */
+.freshness summary,.risk-reason>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:600;color:#245278;overflow-wrap:anywhere}
+.freshness summary::before,.risk-reason>summary::before{content:"▸";margin-right:8px;flex:none}
+.freshness details[open]>summary::before,.risk-reason[open]>summary::before{content:"▾"}
+.freshness summary:focus-visible,.risk-reason>summary:focus-visible{outline:3px solid #ffad33;outline-offset:3px}
+.freshness>p{margin:4px 0 0}.freshness details{margin-top:4px}.risk-reason{margin:0 20px 16px;padding:0 12px}.risk-reason[open]{padding-bottom:12px}
