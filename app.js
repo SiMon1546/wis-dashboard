@@ -13,6 +13,37 @@ function node(tag, text, cls) { const n = document.createElement(tag); if(text !
 function riskBadge(value) { const risk = Object.hasOwn(riskNames, value) ? value : 'UNKNOWN'; return node('span', `${riskNames[risk] || 'ยังประเมินไม่ได้'} · ${value || 'UNKNOWN'}`, `badge risk-${risk}`); }
 function row(parent, label, value) { const r = node('div', undefined, 'metric-row'); r.append(node('span', label), node('strong', value)); parent.append(r); }
 function age(s) { const d = Date.parse(s.observed_at); return Number.isFinite(d) ? Math.max(0,(Date.now()-d)/60000) : s.age_minutes; }
+function riskReason(s) {
+  const box = node('div', undefined, 'risk-reason');
+  box.append(node('strong', 'เหตุผลของ WIS risk'));
+  if(s.engine_version !== '04A-basic-v0.1') {
+    box.append(node('p', 'แสดงระดับจาก Backend · ยังไม่มีคำอธิบายเกณฑ์สำหรับ Engine รุ่นนี้'));
+    return box;
+  }
+  const margin = s.bank_margin_m;
+  let expected, reason;
+  if(s.qc_status === 'SUSPECT') {
+    expected = 'WATCH'; reason = 'QC เป็น SUSPECT: Engine ให้เฝ้าระวังเพราะข้อมูลผิดปกติ และยังสรุปสถานะน้ำไม่ได้';
+  } else if((s.bank_text || '').includes('ล้นตลิ่ง')) {
+    expected = 'CRITICAL'; reason = 'ข้อความจากแหล่งข้อมูลระบุล้นตลิ่ง จึงจัดเป็น CRITICAL';
+  } else if(margin == null || !Number.isFinite(Number(margin))) {
+    expected = 'WATCH'; reason = 'ไม่มีระยะถึงตลิ่ง จึงจัดเป็น WATCH เพราะข้อมูลยังไม่ครบ';
+  } else if(Number(margin) <= 0.5) {
+    expected = 'WARNING'; reason = `ระยะถึงตลิ่ง ${number(margin)} ม. อยู่ในเกณฑ์ไม่เกิน 0.50 ม. จึงเป็น WARNING`;
+  } else if(Number(margin) <= 1) {
+    expected = 'WATCH'; reason = `ระยะถึงตลิ่ง ${number(margin)} ม. อยู่ในเกณฑ์มากกว่า 0.50 ถึง 1.00 ม. จึงเป็น WATCH`;
+  } else {
+    expected = 'NORMAL'; reason = `ระยะถึงตลิ่ง ${number(margin)} ม. มากกว่า 1.00 ม. จึงเป็น NORMAL`;
+  }
+  box.append(node('p', expected === s.risk_level ? reason : 'ระดับจาก Backend ไม่ตรงกับเกณฑ์ที่หน้าเว็บรู้จัก จึงยังยืนยันเหตุผลไม่ได้'));
+  const details = node('details'), summary = node('summary', 'เกณฑ์และความเชื่อมั่น'); details.append(summary);
+  details.append(node('p', 'เกณฑ์ระยะถึงตลิ่ง: ≤ 0.50 ม. WARNING · > 0.50–1.00 ม. WATCH · > 1.00 ม. NORMAL; ข้อความล้นตลิ่งเป็น CRITICAL และ QC SUSPECT มีสิทธิ์ทับเป็น WATCH'));
+  details.append(node('p', 'แนวโน้มแสดงประกอบเท่านั้น ยังไม่เพิ่มหรือลดระดับ risk ใน Engine รุ่นนี้'));
+  details.append(node('p', 'ความเชื่อมั่นเป็นคะแนนตามกฎคุณภาพข้อมูล ไม่ใช่โอกาสทำนายถูก: LIVE 95%, DELAYED 80%, STALE 45%, อื่น ๆ 30%; ไม่มีระยะถึงตลิ่งหัก 15 จุด และ trend UNKNOWN หัก 5 จุด โดยมีขั้นต่ำ 20%'));
+  details.append(node('p', `คำนวณความเสี่ยงเมื่อ: ${time(s.calculated_at)} · Engine ${s.engine_version}`));
+  details.append(node('p', 'ระดับนี้อ้างอิงข้อมูล ณ เวลาคำนวณ โปรดดู QC และเวลาตรวจวัดประกอบ โดยเฉพาะเมื่อข้อมูลเก่า'));
+  box.append(details); return box;
+}
 function card(s) {
   const article = node('article', undefined, 'station'); article.dataset.station = s.station_code;
   const top = node('div', undefined, 'card-top'), name = node('div');
@@ -31,7 +62,7 @@ function card(s) {
   row(metrics,'อัตราเปลี่ยนระดับ',s.water_rate_m_per_hr == null ? 'ไม่มีข้อมูล' : `${number(s.water_rate_m_per_hr,3)} ม./ชม.`);
   const quality = node('div', undefined, 'quality');
   for(const text of [`QC: ${s.qc_status || 'UNKNOWN'} · อายุข้อมูล ${number(age(s),0)} นาที`, `ความเชื่อมั่น: ${s.confidence == null ? 'ไม่มีข้อมูล' : number(s.confidence*100,0)+'%'}`, `เวลาตรวจวัด: ${time(s.observed_at)}`, `สถานะน้ำ: ${s.water_state || 'UNKNOWN'}`, `หลักฐานน้ำล้น: ${s.flood_state || 'UNKNOWN'}`, `Trend method: ${s.trend_method || 'UNKNOWN'}`]) quality.append(node('p',text));
-  article.append(top,metrics,quality); return article;
+  article.append(top,metrics,riskReason(s),quality); return article;
 }
 function render(data) {
   el('overall').replaceChildren(riskBadge(data.overall_risk));
